@@ -77,33 +77,12 @@ class Graph:
 
     #outgoing = every vertex that this vertex points to
     def listOutgoingAdjacentVertex(self, vertex):
+        #a vertex that is not in the graph has no outgoing edges
+        #return an empty list instead of crashing with KeyError
+        if vertex not in self._adjacency:
+            return []
         #this needs no full scan because outgoing edges are stored directly
         return list(self._adjacency[vertex])
-
-    #hasPath answers one question: starting from start, can we reach goal by following the arrows?
-    #used by feature (c) to stop a cycle before a new edge is added
-    #generic: it only follows the dictionary, it never looks inside Course
-    #method: depth-first search (DFS), time complexity O(V + E)
-    def hasPath(self, start, goal):
-        #stack holds the vertices still waiting to be checked
-        #pop() takes the last one added, so the search goes deep along one path first
-        stack = [start]
-        #visited holds the vertices already checked
-        #without it, the loop could check the same vertex again and again
-        visited = set()
-
-        while stack:
-            current = stack.pop()
-            #reached the goal -> a path exists
-            if current is goal:
-                return True
-            if current not in visited:
-                visited.add(current)
-                #put every vertex that current points to on the stack, to check later
-                stack.extend(self._adjacency[current])
-
-        #stack is empty: every reachable vertex was checked and goal was never met
-        return False
 
 def showMenu(courses, graph):
     print(f'==== University Course Prerequisite System ====')
@@ -111,8 +90,7 @@ def showMenu(courses, graph):
     print(f'2. View Course Details')
     print(f'3. View Prerequisites of a Course')
     print(f'4. View Courses Unlocked by a Course')
-    print(f'5. Add a Prerequisite to a Course')
-    print(f'6. Exit')
+    print(f'5. Exit')
 
     while True:
         try:
@@ -126,24 +104,20 @@ def showMenu(courses, graph):
             elif choice == 4:
                 viewAdvancedCourse(graph, courses)
             elif choice == 5:
-                addPrerequisite(graph, courses)
-            elif choice == 6:
                 print(f'Exiting program. Goodbye!')
                 break
             else:
-                print(f'Invalid choice. Please enter a number. (1 - 6)')
+                print(f'Invalid choice. Please enter a number. (1 - 5)')
 
         except ValueError:
-            print(f'Invalid choice. Please enter a number. (1 - 6)')
+            print(f'Invalid choice. Please enter a number. (1 - 5)')
             continue
 
 #display a list of all courses
 def viewAllCourses(courses):
     print("\nAvailable Courses:")
-    #courses is a dictionary: key = course code, value = Course object
-    #.values() gives the Course objects directly
-    for index, course in enumerate(courses.values()):
-        print(f'{index+1}. {course.courseCode} - {course.courseName}')
+    for index, course_name in enumerate(courses):
+        print(f'{index+1}. {courses[course_name].courseCode} - {courses[course_name].courseName}')
 
 #create course objects and return them in a list
 def _load_course():
@@ -154,11 +128,8 @@ def _load_course():
     c5 = Course("Software Engineering", "CS401", 20, "elective")
     return [c1,c2,c3,c4,c5]
 
-#prompt: the question shown to the user
-#default is "Enter Course Code: ", feature (c) passes its own prompts to ask for two different courses
-#returns the Course object, or None when the code does not exist
-def _findCourse(courses, prompt="Enter Course Code: "):
-    course_code = input(prompt).strip().upper()
+def _findCourse(courses):
+    course_code = input("Enter Course Code: ").strip().upper()
 
     course = courses.get(course_code)
     if course is None:
@@ -173,70 +144,29 @@ def viewCourseDetails(courses):
 
 def viewCoursePrerequisites(graph, courses):
     result = _findCourse(courses)
-    #_findCourse returns None when the user types a code that does not exist (e.g. CS999)
-    #without this stop, result.courseCode below crashes: None has no courseCode
+    #course code not found: "Course not found." already printed, go back to menu
     if result is None:
         return
-
     prerequisites = graph.listIncomingAdjacentVertex(result)
     print(f'Prerequisites for {result.courseCode} - {result.courseName}:')
-    #the course exists but the list can still be empty
-    #e.g. CS101 is the first course, so nothing points to it
+    #no incoming edges -> entry-level course
     if not prerequisites:
         print(f'- None')
-        return
     for p in prerequisites:
         print(f'- {p.courseCode} ({p.courseName})')
 
 def viewAdvancedCourse(graph, courses):
     result = _findCourse(courses)
-    #same stop as above: None is not a key in the graph, so the lookup would raise KeyError
+    #course code not found: "Course not found." already printed, go back to menu
     if result is None:
         return
-
     advanced = graph.listOutgoingAdjacentVertex(result)
     print(f'Courses unlocked by {result.courseCode} - {result.courseName}')
-    #the course exists but may unlock nothing, e.g. CS401 is the last course
+    #no outgoing edges -> final course in the path
     if not advanced:
         print(f'- None')
-        return
     for a in advanced:
         print(f'- {a.courseCode} ({a.courseName})')
-
-#optional feature (c): course X adds course Y as a prerequisite on-demand
-#this creates a new incoming edge Y -> X (Y must be passed before X)
-#flow:
-#1. ask for X (the course that gets a new prerequisite)
-#2. ask for Y (the prerequisite)
-#3. reject 3 invalid cases: Y is X, Y is already a prerequisite, the edge would make a cycle
-#4. otherwise add the edge Y -> X
-#the rules live here, not in Graph, because "no cycles" is a course rule
-#Graph stays generic and can be reused for graphs where cycles are allowed
-def addPrerequisite(graph, courses):
-    #course: X, the Course object that will receive the new prerequisite
-    course = _findCourse(courses, "Enter the course code that needs a new prerequisite: ")
-    if course is None:
-        return
-    #prerequisite: Y, the Course object that must be passed first
-    prerequisite = _findCourse(courses, "Enter the prerequisite course code: ")
-    if prerequisite is None:
-        return
-
-    #case 1: a course cannot require itself
-    if prerequisite is course:
-        print(f'A course cannot be its own prerequisite.')
-    #case 2: Y already points to X, the edge exists
-    elif course in graph.listOutgoingAdjacentVertex(prerequisite):
-        print(f'{prerequisite.courseCode} is already a prerequisite of {course.courseCode}.')
-    #case 3: cycle check
-    #if X can already reach Y, then X is needed (directly or indirectly) before Y
-    #adding Y -> X would close a loop: X before Y before X, so no student could ever start
-    #e.g. CS101 -> CS201 exists; making CS201 a prerequisite of CS101 gives CS101 -> CS201 -> CS101
-    elif graph.hasPath(course, prerequisite):
-        print(f'Cannot add: {course.courseCode} is already required before {prerequisite.courseCode}, this would create a cycle.')
-    #all checks passed: create the incoming edge Y -> X
-    elif graph.addEdge(prerequisite, course):
-        print(f'{prerequisite.courseCode} ({prerequisite.courseName}) is now a prerequisite of {course.courseCode} ({course.courseName}).')
 
 #return the requisite code pairs
 #each pair is one row from table in (prerequisite, course)
