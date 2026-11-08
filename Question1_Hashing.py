@@ -135,11 +135,10 @@ class HashTable:
     ##########################
 
     #encapsulation
-    #hash() turns the key into a whole number, % size keeps it inside the table
-    #for a positive int key, hash(key) is the key itself, so slot = key % size
-    #hash() also accepts string keys, which keeps the table reusable
+    #division method: the remainder of key / size is always between 0 and size - 1,
+    #so every whole-number key maps to a slot inside the table
     def _hash(self, key):
-        return hash(key) % self.size
+        return key % self.size
 
     #find hash index in hash table
     def _find_index(self, search_key):
@@ -237,6 +236,7 @@ class HashTable:
         #tombstone, not None, so the probe path is not broken
         self.table[index] = DELETED
         return value
+
 
 #######################################
 #searching and timing                 #
