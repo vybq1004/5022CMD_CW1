@@ -113,8 +113,7 @@ DELETED       -> tombstone, was used before
 
 Why store (key, value) and not just the Product?
 The table only ever reads the key, it never touches .id, .name, .price or .stock.
-So the same HashTable can store any kind of record (abstraction, reusable),
-e.g. (student ID, Student) or (IC number, Customer).
+So the same HashTable can store any kind of record with a whole-number key (abstraction, reusable).
 
 Collision resolution: Open Addressing with Linear Probing
 If the slot is taken, try the next slot (index + 1), wrap to 0 at the end.
