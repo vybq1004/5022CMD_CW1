@@ -238,7 +238,6 @@ class HashTable:
         self.table[index] = DELETED
         return value
 
-
 #######################################
 #searching and timing                 #
 #######################################
@@ -270,7 +269,8 @@ def average_search_ns(search_function, container, search_key):
 #search the same key in both structures and time only the lookup
 def compare_search(ht, arr, search_key):
     hash_result, hash_ns = average_search_ns(search_ht, ht, search_key)
-    arr_result, arr_ns = average_search_ns(search_arr, arr, search_key)
+    #only the time is needed from the array search, the result is the same record
+    _, arr_ns = average_search_ns(search_arr, arr, search_key)
 
     #time both found and not found searches
     if hash_result is None:
@@ -326,7 +326,7 @@ def load_records():
 
 #create the hash table and the array, both receive the same records
 def build_storage():
-    #create hash table object with 10 rows
+    #create hash table object with 10 slots
     ht = HashTable(10)
     arr = []
     #insert predefined records into hash table and one-dimensional array
