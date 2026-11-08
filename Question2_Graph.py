@@ -39,7 +39,6 @@ class Graph:
         #the dictionary keys already are the vertices
         #self.vertices would store the same information twice
         self._adjacency = {}
-
     #abstraction: the caller only asks to add a vertex
     #vertex can be any suitable object, such as a string or Course
     #Graph never uses Course attributes, so it stays generic and reusable
@@ -84,13 +83,37 @@ class Graph:
         #this needs no full scan because outgoing edges are stored directly
         return list(self._adjacency[vertex])
 
+    #can we reach end_vertex from start_vertex by following the arrows?
+    #used before adding a new edge, to stop a loop (cycle) being created
+    #depth-first search: go as deep as possible along one path, then try the next
+    #time complexity: O(V + E), every vertex and edge is visited at most once
+    def hasPath(self, start_vertex, end_vertex):
+        if start_vertex not in self._adjacency or end_vertex not in self._adjacency:
+            return False
+        #stack: vertices still waiting to be checked
+        stack = [start_vertex]
+        #visited: vertices already checked, so no vertex is checked twice
+        visited = []
+        while stack:
+            current = stack.pop()
+            if current == end_vertex:
+                return True
+            if current not in visited:
+                visited.append(current)
+                #add every vertex that current points to, so they are checked next
+                for neighbour in self._adjacency[current]:
+                    stack.append(neighbour)
+        #every reachable vertex was checked and end_vertex was not found
+        return False
+
 def showMenu(courses, graph):
     print(f'==== University Course Prerequisite System ====')
     print(f'1. View All Courses')
     print(f'2. View Course Details')
     print(f'3. View Prerequisites of a Course')
     print(f'4. View Courses Unlocked by a Course')
-    print(f'5. Exit')
+    print(f'5. Add a Prerequisite to a Course')
+    print(f'6. Exit')
 
     while True:
         try:
@@ -104,13 +127,15 @@ def showMenu(courses, graph):
             elif choice == 4:
                 viewAdvancedCourse(graph, courses)
             elif choice == 5:
+                addPrerequisite(graph, courses)
+            elif choice == 6:
                 print(f'Exiting program. Goodbye!')
                 break
             else:
-                print(f'Invalid choice. Please enter a number. (1 - 5)')
+                print(f'Invalid choice. Please enter a number. (1 - 6)')
 
         except ValueError:
-            print(f'Invalid choice. Please enter a number. (1 - 5)')
+            print(f'Invalid choice. Please enter a number. (1 - 6)')
             continue
 
 #display a list of all courses
@@ -128,8 +153,9 @@ def _load_course():
     c5 = Course("Software Engineering", "CS401", 20, "elective")
     return [c1,c2,c3,c4,c5]
 
-def _findCourse(courses):
-    course_code = input("Enter Course Code: ").strip().upper()
+#prompt: the question shown to the user, so the same function can ask for different courses
+def _findCourse(courses, prompt="Enter Course Code: "):
+    course_code = input(prompt).strip().upper()
 
     course = courses.get(course_code)
     if course is None:
@@ -167,6 +193,35 @@ def viewAdvancedCourse(graph, courses):
         print(f'- None')
     for a in advanced:
         print(f'- {a.courseCode} ({a.courseName})')
+
+#advanced feature c: course X adds course Y as a prerequisite on demand
+#this creates a new edge from Y to X (Y must be taken before X)
+def addPrerequisite(graph, courses):
+    course = _findCourse(courses, "Enter Course Code that needs the prerequisite: ")
+    if course is None:
+        return
+    prerequisite = _findCourse(courses, "Enter Course Code of the prerequisite: ")
+    if prerequisite is None:
+        return
+
+    #a course cannot be a prerequisite of itself
+    if course is prerequisite:
+        print(f'A course cannot be a prerequisite of itself.')
+        return
+
+    #if course already leads to prerequisite, adding prerequisite -> course makes a loop
+    #e.g. CS101 leads to CS401, so CS401 cannot become a prerequisite of CS101
+    #a loop would mean neither course could ever be taken first
+    if graph.hasPath(course, prerequisite):
+        print(f'Cannot add: {course.courseCode} is already required before {prerequisite.courseCode}, '
+              f'this would create a loop.')
+        return
+
+    #addEdge returns False when the edge already exists
+    if graph.addEdge(prerequisite, course):
+        print(f'{prerequisite.courseCode} is now a prerequisite of {course.courseCode}.')
+    else:
+        print(f'{prerequisite.courseCode} is already a prerequisite of {course.courseCode}.')
 
 #return the requisite code pairs
 #each pair is one row from table in (prerequisite, course)
